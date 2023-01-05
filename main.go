@@ -46,7 +46,7 @@ func run() ExitCode {
 	}
 
 	//export outputs
-	err = buildStep.ExportOutputs()
+	err = buildStep.ExportOutputs(config)
 	if err != nil {
 		logger.Errorf(errorutil.FormattedError(fmt.Errorf("Failed to export Step outputs: %w", err)))
 		return Failure
