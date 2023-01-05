@@ -1,0 +1,66 @@
+title: Swiftlint Linter for iOS
+summary: Scans your code for linter errors based on specified in your `.swiftlint.yml`
+description: |-
+  The Step lints your code by recursively scanning all Swift files.
+website: https://github.com/bitrise-steplib/steps-swiftlint
+source_code_url: https://github.com/bitrise-steplib/steps-swiftlint
+support_url: https://github.com/bitrise-steplib/steps-swiftlint/issues
+project_type_tags:
+  - ios
+  - react-native
+  - flutter
+type_tags:
+  - build
+is_always_run: false
+is_skippable: false
+toolkit:
+  go:
+    package_name: github.com/bitrise-steplib/steps-xcode-archive
+inputs:
+  - project_path: $BITRISE_SOURCE_DIR
+    opts:
+      title: Project path
+      summary: The path to the directory containing the Swift files
+      description: |-
+        The path to the directory containing the Swift files.
+      is_required: true
+
+  - generate_log: false
+    opts:
+      title: Generate log
+      summary: Generates a log file in the Bitrise deploy directory
+      description: |-
+        A text log of the swiftlint command's output will be generated and saved in the Bitrise deploy directory.
+      value_options:
+        - true
+        - false
+      is_required: true
+
+  - strict_mode: false
+    opts:
+      title: Strict Mode
+      summary: Runs SwiftLint in strict mode
+      description: |-
+        When run in strict mode SwiftLint will treat warnings as errors.
+      value_options:
+        - true
+        - false
+      is_required: true
+
+  # Debugging
+
+  - verbose_log: false
+    opts:
+      category: Debugging
+      title: Enable verbose logging
+      summary: If this input is set, the Step will print additional logs for debugging.
+      value_options:
+        - true
+        - false
+      is_required: true
+
+outputs:
+  - BITRISE_IPA_PATH:
+    opts:
+      title: .ipa file path
+      summary: Local path of the created .ipa file
