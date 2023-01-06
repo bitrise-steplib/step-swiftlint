@@ -104,7 +104,10 @@ func (s SwiftLinter) Run(config Config) error {
 		Dir: config.Inputs.ProjectPath,
 	}
 
-	gitHelper := s.gitHelperProvider.NewGitHelper(config.Inputs.ProjectPath)
+	gitHelper, err := s.gitHelperProvider.NewGitHelper(config.Inputs.ProjectPath)
+	if err != nil {
+		return fmt.Errorf("failed to initialize git helper error: %s", err)
+	}
 
 	rootPath, err := gitHelper.GetRootPath()
 	if err != nil {

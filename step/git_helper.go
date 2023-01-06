@@ -9,5 +9,5 @@ type GitHelper interface {
 }
 
 type GitHelperProvider interface {
-	NewGitHelper(string) GitHelper
+	NewGitHelper(string) (GitHelper, error)
 }

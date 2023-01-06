@@ -14,11 +14,9 @@ func NewGitShellHelperProvider(cmdFactory command.Factory) GitShellHelperProvide
 	}
 }
 
-func (g GitShellHelperProvider) NewGitHelper(projectPath string) GitHelper {
-	return GitShellHelper{
-		cmdFactory: g.cmdFactory,
-		opts: command.Opts{
-			Dir: projectPath,
-		},
-	}
+func (g GitShellHelperProvider) NewGitHelper(projectPath string) (GitHelper, error) {
+	return NewGitShellHelper(
+		g.cmdFactory,
+		projectPath,
+	), nil
 }
