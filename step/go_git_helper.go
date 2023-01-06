@@ -1,6 +1,8 @@
 package step
 
-import "github.com/go-git/go-git"
+import (
+	"github.com/go-git/go-git"
+)
 
 type GoGitHelper struct {
 	repo *git.Repository
