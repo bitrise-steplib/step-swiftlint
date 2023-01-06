@@ -22,7 +22,8 @@ func run() ExitCode {
 	envRepository := env.NewRepository()
 	inputParser := stepconf.NewInputParser(envRepository)
 	cmdFactory := command.NewFactory(envRepository)
-	buildStep := step.NewSwiftLinter(inputParser, logger, cmdFactory)
+	gitHelperProvider := step.NewGitShellHelperProvider(cmdFactory)
+	buildStep := step.NewSwiftLinter(inputParser, logger, cmdFactory, gitHelperProvider)
 
 	//process config
 	config, err := buildStep.ProcessInputs()

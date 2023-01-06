@@ -20,9 +20,10 @@ type Config struct {
 }
 
 type SwiftLinter struct {
-	inputParser stepconf.InputParser
-	logger      log.Logger
-	cmdFactory  command.Factory
+	inputParser       stepconf.InputParser
+	logger            log.Logger
+	cmdFactory        command.Factory
+	gitHelperProvider GitHelperProvider
 }
 
 // NewSwiftLinter ...
@@ -30,11 +31,13 @@ func NewSwiftLinter(
 	stepInputParser stepconf.InputParser,
 	logger log.Logger,
 	cmdFactory command.Factory,
+	gitHelperProvider GitHelperProvider,
 ) SwiftLinter {
 	return SwiftLinter{
-		inputParser: stepInputParser,
-		logger:      logger,
-		cmdFactory:  cmdFactory,
+		inputParser:       stepInputParser,
+		logger:            logger,
+		cmdFactory:        cmdFactory,
+		gitHelperProvider: gitHelperProvider,
 	}
 }
 
@@ -100,31 +103,21 @@ func (s SwiftLinter) Run(config Config) error {
 	opts := command.Opts{
 		Dir: config.Inputs.ProjectPath,
 	}
-	//git rev-parse --show-toplevel
-	cmd := s.cmdFactory.Create("git", []string{"rev-parse", "--show-toplevel"}, &opts)
-	rootPath, err := cmd.RunAndReturnTrimmedOutput()
+
+	gitHelper := s.gitHelperProvider.NewGitHelper(config.Inputs.ProjectPath)
+
+	rootPath, err := gitHelper.GetRootPath()
 	if err != nil {
 		return fmt.Errorf("failed to get root git path error: %s", err)
 	}
 
-	//git config --get remote.origin.url
-	cmd = s.cmdFactory.Create("git", []string{"config", "--get", "remote.origin.url"}, &opts)
-	remoteURL, err := cmd.RunAndReturnTrimmedOutput()
+	remoteURL, err := gitHelper.GetRemoteUrl()
 	if err != nil {
 		return fmt.Errorf("failed to get remote url error: %s", err)
 	}
 	remoteURL = strings.TrimSuffix(remoteURL, ".git")
 
-	// git rev-parse --abbrev-ref HEAD
-	cmd = s.cmdFactory.Create("git", []string{"rev-parse", "--abbrev-ref", "HEAD"}, &opts)
-	currentBranch, err := cmd.RunAndReturnTrimmedOutput()
-	if err != nil {
-		return fmt.Errorf("failed to get current branch error: %s", err)
-	}
-
-	// git rev-parse --abbrev-ref HEAD
-	cmd = s.cmdFactory.Create("git", []string{"rev-parse", currentBranch}, &opts)
-	currentBranchHash, err := cmd.RunAndReturnTrimmedOutput()
+	currentBranchHash, err := gitHelper.GetCurrentBranchHash()
 	if err != nil {
 		return fmt.Errorf("failed to get hash of current branch: %s", err)
 	}
@@ -148,7 +141,7 @@ func (s SwiftLinter) Run(config Config) error {
 		args = append(args, "--strict")
 	}
 
-	cmd = s.cmdFactory.Create("swiftlint", args, &opts)
+	cmd := s.cmdFactory.Create("swiftlint", args, &opts)
 	return cmd.Run()
 }
 
