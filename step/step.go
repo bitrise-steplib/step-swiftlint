@@ -134,7 +134,6 @@ func (s SwiftLinter) Run(config Config) error {
 		cmdFactory:       s.cmdFactory,
 		rootPath:         rootPath,
 		repositoryURL:    remoteURL,
-		currentBranch:    currentBranch,
 		currentBranchSHA: currentBranchHash,
 	}
 

@@ -18,7 +18,6 @@ type LinterParser struct {
 	cmdFactory       command.Factory
 	rootPath         string
 	repositoryURL    string
-	currentBranch    string
 	currentBranchSHA string
 }
 
@@ -65,7 +64,7 @@ func (l LinterParser) parseAndLog(s string) error {
 }
 
 func (l LinterParser) parseLine(s string) (ParsedLine, error) {
-	// /Users/vikas/Documents/Sample Projects/Bitrise-iOS-Sample/BitriseTestUITests/BitriseTestUITests.swift:18:1: warning: Line Length Violation: Line should be 120 characters or less: currently 182 characters (line_length)
+	// /Users/xxx/Documents/Sample Projects/Bitrise-iOS-Sample/BitriseTestUITests/BitriseTestUITests.swift:18:1: warning: Line Length Violation: Line should be 120 characters or less: currently 182 characters (line_length)
 	split := strings.Split(s, ":")
 
 	if len(split) < 5 {
