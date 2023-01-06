@@ -7,3 +7,7 @@ type GitHelper interface {
 	GetBranchHash(string) (string, error)
 	GetCurrentBranchHash() (string, error)
 }
+
+type GitHelperProvider interface {
+	NewGitHelper(string) GitHelper
+}
