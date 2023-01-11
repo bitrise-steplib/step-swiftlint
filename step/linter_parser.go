@@ -14,14 +14,13 @@ const (
 )
 
 type LinterParser struct {
-	logger           log.Logger
-	cmdFactory       command.Factory
-	rootPath         string
-	repositoryURL    string
-	currentBranchSHA string
+	Logger        log.Logger
+	CmdFactory    command.Factory
+	RepoState     GitRepositoryState
+	LineFormatter ParsedLineFormatter
 }
 
-type ParsedLine struct {
+type parsedLine struct {
 	relativeFilePath string
 	lineNumber       int
 	columnNumber     int
@@ -39,49 +38,50 @@ func (l LinterParser) Write(p []byte) (int, error) {
 
 func (l LinterParser) parseAndLog(s string) error {
 	splitStrings := strings.Split(s, "\n")
-	parsedLines := []ParsedLine{}
+	parsedLines := []parsedLine{}
 	for i := range splitStrings {
-		parsedLine, err := l.parseLine(splitStrings[i])
+		line, err := l.parseLine(splitStrings[i])
 		if err != nil { //we're just going to ignore any parsing errors, print the original line, and go next
-			l.logger.Printf(splitStrings[i])
+			l.Logger.Printf(splitStrings[i])
 			continue
 		}
 		var logger func(string, ...interface{})
-		switch parsedLine.severity {
+		switch line.severity {
 		case linterLoggingSeverityWarning:
-			logger = l.logger.Warnf
+			logger = l.Logger.Warnf
 		case linterLoggingSeverityError:
-			logger = l.logger.Errorf
+			logger = l.Logger.Errorf
 		default:
-			logger = l.logger.Printf
+			logger = l.Logger.Printf
 		}
 		//github.com/<organization>/<repository>/blob/<branch_name>/README.md#L14: <linter message>
-		logger("%s/blob/%s%s#L%d:%s", l.repositoryURL, l.currentBranchSHA, parsedLine.relativeFilePath, parsedLine.lineNumber, parsedLine.message)
-		parsedLines = append(parsedLines, parsedLine)
+		logString := l.LineFormatter.format(line)
+		logger(logString)
+		parsedLines = append(parsedLines, line)
 	}
 
 	return nil
 }
 
-func (l LinterParser) parseLine(s string) (ParsedLine, error) {
+func (l LinterParser) parseLine(s string) (parsedLine, error) {
 	// /Users/xxx/Documents/Sample Projects/Bitrise-iOS-Sample/BitriseTestUITests/BitriseTestUITests.swift:18:1: warning: Line Length Violation: Line should be 120 characters or less: currently 182 characters (line_length)
 	split := strings.Split(s, ":")
 
 	if len(split) < 5 {
-		return ParsedLine{}, fmt.Errorf("Unexpected format")
+		return parsedLine{}, fmt.Errorf("Unexpected format")
 	}
 
-	relPath := strings.TrimPrefix(split[0], l.rootPath)
+	relPath := strings.TrimPrefix(split[0], l.RepoState.RootPath)
 
 	line64, err := strconv.ParseInt(split[1], 10, 64)
 	if err != nil {
-		return ParsedLine{}, fmt.Errorf("failed to parse line number: %s", err)
+		return parsedLine{}, fmt.Errorf("failed to parse line number: %s", err)
 	}
 	line := int(line64)
 
 	col64, err := strconv.ParseInt(split[2], 10, 64)
 	if err != nil {
-		return ParsedLine{}, fmt.Errorf("failed to parse column number: %s", err)
+		return parsedLine{}, fmt.Errorf("failed to parse column number: %s", err)
 	}
 	col := int(col64)
 
@@ -89,7 +89,7 @@ func (l LinterParser) parseLine(s string) (ParsedLine, error) {
 
 	message := strings.Join(split[4:], ":")
 
-	parsedLine := ParsedLine{
+	parsedLine := parsedLine{
 		relativeFilePath: relPath,
 		lineNumber:       line,
 		columnNumber:     col,
