@@ -2,6 +2,9 @@ title: Swiftlint Linter for iOS
 summary: Scans your code for linter errors based on specified in your `.swiftlint.yml`
 description: |-
   The Step lints your code by recursively scanning all Swift files.
+  
+  Under **Step Output Export configuration**:
+  1. **Output directory path**: This directory will contain the generated log file if `generate_log` is true.
 website: https://github.com/bitrise-steplib/steps-swiftlint
 source_code_url: https://github.com/bitrise-steplib/steps-swiftlint
 support_url: https://github.com/bitrise-steplib/steps-swiftlint/issues
@@ -37,9 +40,9 @@ inputs:
   - generate_log: false
     opts:
       title: Generate log
-      summary: Generates a log file in the Bitrise deploy directory
+      summary: Generates a log file in the `Output directory`
       description: |-
-        A text log of the swiftlint command's output will be generated and saved in the Bitrise deploy directory.
+        The raw `swiftlint` command output. The log file is placed into the `Output directory`.
       value_options:
         - true
         - false
@@ -56,3 +59,19 @@ inputs:
         - true
         - false
       is_required: true
+
+  # Step Output Export configuration
+
+  - output_dir: $BITRISE_DEPLOY_DIR
+    opts:
+      category: Step Output Export configuration
+      title: Output directory path
+      summary: This directory will contain the generated artifacts.
+      is_required: true
+
+  outputs:
+  - BITRISE_SWIFTLINT_LOG_PATH:
+    opts:
+      title: "`swiftlint` command log file path"
+      description: |-
+        The file path of the raw `swiftlint` command log. The log is placed into the `Output directory path`.
