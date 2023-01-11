@@ -7,15 +7,13 @@ source_code_url: https://github.com/bitrise-steplib/steps-swiftlint
 support_url: https://github.com/bitrise-steplib/steps-swiftlint/issues
 project_type_tags:
   - ios
-  - react-native
-  - flutter
 type_tags:
   - build
 is_always_run: false
 is_skippable: false
 toolkit:
   go:
-    package_name: github.com/bitrise-steplib/steps-xcode-archive
+    package_name: github.com/bitrise-steplib/steps-swiftlint
 inputs:
   - project_path: $BITRISE_SOURCE_DIR
     opts:
@@ -25,23 +23,23 @@ inputs:
         The path to the directory containing the Swift files.
       is_required: true
 
-  - generate_log: false
-    opts:
-      title: Generate log
-      summary: Generates a log file in the Bitrise deploy directory
-      description: |-
-        A text log of the swiftlint command's output will be generated and saved in the Bitrise deploy directory.
-      value_options:
-        - true
-        - false
-      is_required: true
-
   - strict_mode: false
     opts:
       title: Strict Mode
       summary: Runs SwiftLint in strict mode
       description: |-
         When run in strict mode SwiftLint will treat warnings as errors.
+      value_options:
+        - true
+        - false
+      is_required: true
+
+  - generate_log: false
+    opts:
+      title: Generate log
+      summary: Generates a log file in the Bitrise deploy directory
+      description: |-
+        A text log of the swiftlint command's output will be generated and saved in the Bitrise deploy directory.
       value_options:
         - true
         - false
@@ -58,9 +56,3 @@ inputs:
         - true
         - false
       is_required: true
-
-outputs:
-  - BITRISE_IPA_PATH:
-    opts:
-      title: .ipa file path
-      summary: Local path of the created .ipa file
