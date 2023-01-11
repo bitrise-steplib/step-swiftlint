@@ -6,8 +6,41 @@ import (
 	"strings"
 )
 
+const (
+	repositoryProviderGithub    = "github"
+	repositoryProviderGitlab    = "gitlab"
+	repositoryProviderBitbucket = "bitbucket"
+)
+
 type ParsedLineFormatter interface {
 	format(line parsedLine) string
+}
+
+func ParsedLineFormatterFactory(config Config) ParsedLineFormatter {
+	remoteURL, err := url.ParseRequestURI(config.RepoState.RemoteURL)
+	if err != nil {
+		return nil
+	}
+
+	switch strings.ToLower(remoteURL.Host) {
+	case repositoryProviderGithub:
+		return GithubParsedLineFormatter{
+			RemoteURL:         config.RepoState.RemoteURL,
+			CurrentBranchHash: config.RepoState.CurrentBranchHash,
+		}
+	case repositoryProviderGitlab:
+		return GitlabParsedLineFormatter{
+			RemoteURL:         config.RepoState.RemoteURL,
+			CurrentBranchHash: config.RepoState.CurrentBranchHash,
+		}
+	case repositoryProviderBitbucket:
+		return BitbucketParsedLineFormatter{
+			RemoteURL:         config.RepoState.RemoteURL,
+			CurrentBranchHash: config.RepoState.CurrentBranchHash,
+		}
+	default:
+		return nil
+	}
 }
 
 type GithubParsedLineFormatter struct {
@@ -35,37 +68,4 @@ type BitbucketParsedLineFormatter struct {
 
 func (g BitbucketParsedLineFormatter) format(line parsedLine) string {
 	return fmt.Sprintf("%s/blob/%s%s#L%d:%s", g.RemoteURL, g.CurrentBranchHash, line.relativeFilePath, line.lineNumber, line.message)
-}
-
-const (
-	repositoryProviderGithub    = "github"
-	repositoryProviderGitlab    = "gitlab"
-	repositoryProviderBitbucket = "bitbucket"
-)
-
-func ParsedLineFormatterFactory(config Config) ParsedLineFormatter {
-	remoteURL, err := url.ParseRequestURI(config.RepoState.RemoteURL)
-	if err != nil {
-		return nil
-	}
-
-	switch strings.ToLower(remoteURL.Host) {
-	case repositoryProviderGithub:
-		return GithubParsedLineFormatter{
-			RemoteURL:         config.RepoState.RemoteURL,
-			CurrentBranchHash: config.RepoState.CurrentBranchHash,
-		}
-	case repositoryProviderGitlab:
-		return GitlabParsedLineFormatter{
-			RemoteURL:         config.RepoState.RemoteURL,
-			CurrentBranchHash: config.RepoState.CurrentBranchHash,
-		}
-	case repositoryProviderBitbucket:
-		return BitbucketParsedLineFormatter{
-			RemoteURL:         config.RepoState.RemoteURL,
-			CurrentBranchHash: config.RepoState.CurrentBranchHash,
-		}
-	default:
-		return nil
-	}
 }
