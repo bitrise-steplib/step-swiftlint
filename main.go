@@ -40,7 +40,7 @@ func run() ExitCode {
 	}
 
 	//run
-	err = buildStep.Run(config)
+	result, err = buildStep.Run(config)
 	if err != nil {
 		logger.Errorf(errorutil.FormattedError(fmt.Errorf("Failed to execute Step: %w", err)))
 		return Failure

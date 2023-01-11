@@ -7,6 +7,6 @@ import (
 func TestIsSwiftLintInstalled(t *testing.T) {
 	//mockLogger := MockLogger{}
 	//step := SwiftLinter{
-	//	logger: &mockLogger,
+	//	Logger: &mockLogger,
 	//}
 }
