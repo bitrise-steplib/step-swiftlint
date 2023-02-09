@@ -2,15 +2,27 @@ package step
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"io"
+	"io/fs"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+
 	"github.com/bitrise-io/go-steputils/v2/stepconf"
 	"github.com/bitrise-io/go-utils/v2/command"
 	"github.com/bitrise-io/go-utils/v2/fileutil"
 	"github.com/bitrise-io/go-utils/v2/log"
-	"io"
-	"os"
-	"path/filepath"
-	"strings"
+	"github.com/bitrise-io/go-utils/v2/pathutil"
+)
+
+const (
+	automaticBinarySearchSpecification = "auto"
+	swiftlintBinaryName                = "swiftlint"
+	cocoapodsSubdirectory              = "Pods/Swiftlint/"
+	spmSubdirectory                    = ""
 )
 
 type Input struct {
@@ -18,6 +30,7 @@ type Input struct {
 	GenerateLog bool   `env:"generate_log,opt[true,false]"`
 	DebugMode   bool   `env:"verbose_log,opt[true,false]"`
 	StrictMode  bool   `env:"strict_mode,opt[true,false]"`
+	BinaryPath  string `env:"binary_path"`
 
 	// Output export
 	DeployDir string `env:"BITRISE_DEPLOY_DIR"`
@@ -25,7 +38,8 @@ type Input struct {
 
 type Config struct {
 	Input
-	RepoState GitRepositoryState
+	RepoState          GitRepositoryState
+	resolvedBinaryPath string
 }
 
 type GitRepositoryState struct {
@@ -39,6 +53,8 @@ type SwiftLinter struct {
 	logger            log.Logger
 	cmdFactory        command.Factory
 	gitHelperProvider GitHelperProvider
+	pathModifier      pathutil.PathModifier
+	pathChecker       pathutil.PathChecker
 }
 
 // NewSwiftLinter ...
@@ -47,12 +63,16 @@ func NewSwiftLinter(
 	logger log.Logger,
 	cmdFactory command.Factory,
 	gitHelperProvider GitHelperProvider,
+	pathModifier pathutil.PathModifier,
+	pathChecker pathutil.PathChecker,
 ) SwiftLinter {
 	return SwiftLinter{
 		inputParser:       stepInputParser,
 		logger:            logger,
 		cmdFactory:        cmdFactory,
 		gitHelperProvider: gitHelperProvider,
+		pathModifier:      pathModifier,
+		pathChecker:       pathChecker,
 	}
 }
 
@@ -92,44 +112,141 @@ func (s SwiftLinter) ProcessInputs() (Config, error) {
 			RemoteURL:         remoteURL,
 			CurrentBranchHash: currentBranchHash,
 		},
+		resolvedBinaryPath: "",
 	}
 	s.logger.EnableDebugLog(config.DebugMode)
 
 	return config, nil
 }
 
-func (s SwiftLinter) EnsureDependencies() error {
-	isInstalled, err := s.isSwiftLintInstalled()
-	if err != nil {
-		return err
+func (s SwiftLinter) EnsureDependencies(config Config) (Config, error) {
+	if config.BinaryPath == automaticBinarySearchSpecification {
+		s.logger.Println()
+		s.logger.Infof("Automatic binary search specified")
+		pathToBinary := s.findSwiftLintBinary(config.ProjectPath)
+
+		if len(pathToBinary) > 0 {
+			s.logger.Infof("SwiftLint binary found: %s", pathToBinary)
+
+			updatedConfig := Config{
+				config.Input,
+				config.RepoState,
+				pathToBinary,
+			}
+			return updatedConfig, nil
+		}
+
+		s.logger.Warnf("Failed to locate SwiftLint binary in project directory (%s)", config.ProjectPath)
+		isInstalled, err := s.isSwiftLintInstalled()
+		if err != nil {
+			return Config{}, err
+		}
+
+		if !isInstalled {
+			err = s.installSwiftLint()
+			if err != nil {
+				return Config{}, err
+			}
+		}
+
+		return config, nil
 	}
 
-	if !isInstalled {
-		err = s.installSwiftLint()
+	s.logger.Println()
+	s.logger.Infof("Swiftlint binary path specified")
+	s.logger.Infof("Expand path")
+	pathToBinary, err := s.pathModifier.AbsPath(config.BinaryPath)
+	if err != nil {
+		return Config{}, fmt.Errorf("Failed to expand path (%s), error: %w", config.BinaryPath, err)
+	}
+
+	exists, err := s.pathChecker.IsPathExists(pathToBinary)
+	if err != nil {
+		return Config{}, fmt.Errorf("Failed to check if path exists (%s), error: %w", config.BinaryPath, err)
+	}
+	if !exists {
+		return Config{}, fmt.Errorf("Binary at specified path (%s) does not exist", config.BinaryPath)
+	}
+
+	updatedConfig := Config{
+		config.Input,
+		config.RepoState,
+		pathToBinary,
+	}
+
+	return updatedConfig, nil
+}
+
+func (s SwiftLinter) findSwiftLintBinary(root string) string {
+	if pathToBinary := s.checkCommonSwiftLintLocations(root); len(pathToBinary) > 0 {
+		return pathToBinary
+	}
+
+	var pathToBinary string
+	swiftLintFound := errors.New("SwiftLint found")
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
+
+		if !d.IsDir() && d.Name() == swiftlintBinaryName {
+			pathToBinary = path
+			return swiftLintFound
+		}
+
+		return nil
+	})
+	if err == swiftLintFound {
+		return pathToBinary
 	}
 
-	return nil
+	return ""
+}
+
+func (s SwiftLinter) checkCommonSwiftLintLocations(root string) string {
+	if path := s.checkCocoaPodsDirectory(root); len(path) > 0 {
+		return path
+	}
+	return ""
+}
+
+func (s SwiftLinter) checkCocoaPodsDirectory(root string) string {
+	fullPath := filepath.Join(root, cocoapodsSubdirectory, swiftlintBinaryName)
+	if s.checkFileExists(fullPath) {
+		return fullPath
+	}
+
+	return ""
+}
+
+func (s SwiftLinter) checkFileExists(pathToFile string) bool {
+	fullPath, err := s.pathModifier.AbsPath(pathToFile)
+	if err != nil {
+		return false
+	}
+	exists, err := s.pathChecker.IsPathExists(fullPath)
+	if err != nil {
+		return false
+	}
+	return exists
 }
 
 func (s SwiftLinter) isSwiftLintInstalled() (bool, error) {
 	s.logger.Println()
 	s.logger.Infof("Checking if SwiftLint is installed")
 
-	cmd := s.cmdFactory.Create("brew", []string{"list"}, nil)
-	out, err := cmd.RunAndReturnTrimmedCombinedOutput()
+	path, err := exec.LookPath(swiftlintBinaryName)
 	if err != nil {
-		return false, fmt.Errorf("%s: error: %s", out, err)
+		return false, fmt.Errorf("error: %s", err)
 	}
 
-	return strings.Contains(out, "swiftlint"), nil
+	return len(path) > 0, nil
 }
 
 func (s SwiftLinter) installSwiftLint() error {
 	s.logger.Println()
-	s.logger.Infof("SwiftLint is not installed. Installing SwiftLint.")
+	s.logger.Infof("SwiftLint is not installed")
+	s.logger.Infof("Installing SwiftLint")
 
 	cmd := s.cmdFactory.Create("brew", []string{"install", "swiftlint"}, nil)
 	out, err := cmd.RunAndReturnTrimmedCombinedOutput()

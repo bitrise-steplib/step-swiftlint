@@ -26,6 +26,14 @@ inputs:
         The path to the directory containing the Swift files.
       is_required: true
 
+  - binary_path: auto
+    opts:
+      title: Path to SwiftLint Binary
+      summary: The path to the SwiftLint binary
+      description: |-
+        The path to the SwiftLint binary
+      is_required: true
+
   - strict_mode: false
     opts:
       title: Strict Mode

@@ -2,14 +2,16 @@ package main
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/bitrise-io/go-steputils/v2/stepconf"
 	"github.com/bitrise-io/go-utils/v2/command"
 	"github.com/bitrise-io/go-utils/v2/env"
 	"github.com/bitrise-io/go-utils/v2/errorutil"
 	. "github.com/bitrise-io/go-utils/v2/exitcode"
 	"github.com/bitrise-io/go-utils/v2/log"
+	"github.com/bitrise-io/go-utils/v2/pathutil"
 	"github.com/bitrise-steplib/steps-swiftlint/step"
-	"os"
 )
 
 func main() {
@@ -19,11 +21,7 @@ func main() {
 
 func run() ExitCode {
 	logger := log.NewLogger()
-	envRepository := env.NewRepository()
-	inputParser := stepconf.NewInputParser(envRepository)
-	cmdFactory := command.NewFactory(envRepository)
-	gitHelperProvider := step.NewGitShellHelperProvider(cmdFactory)
-	buildStep := step.NewSwiftLinter(inputParser, logger, cmdFactory, gitHelperProvider)
+	buildStep := createStep(logger)
 
 	//process config
 	config, err := buildStep.ProcessInputs()
@@ -33,7 +31,7 @@ func run() ExitCode {
 	}
 
 	//ensure deps
-	err = buildStep.EnsureDependencies()
+	err = buildStep.EnsureDependencies(config)
 	if err != nil {
 		logger.Errorf(errorutil.FormattedError(fmt.Errorf("Failed to install Step dependencies: %w", err)))
 		return Failure
@@ -54,4 +52,15 @@ func run() ExitCode {
 	}
 
 	return Success
+}
+
+func createStep(logger log.Logger) step.SwiftLinter {
+	envRepository := env.NewRepository()
+	inputParser := stepconf.NewInputParser(envRepository)
+	cmdFactory := command.NewFactory(envRepository)
+	gitHelperProvider := step.NewGitShellHelperProvider(cmdFactory)
+	pathModifier := pathutil.NewPathModifier()
+	pathChecker := pathutil.NewPathChecker()
+	buildStep := step.NewSwiftLinter(inputParser, logger, cmdFactory, gitHelperProvider, pathModifier, pathChecker)
+	return buildStep
 }
