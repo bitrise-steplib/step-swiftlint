@@ -30,6 +30,7 @@ type Input struct {
 	DebugMode      bool   `env:"verbose_log,opt[true,false]"`
 	StrictMode     bool   `env:"strict_mode,opt[true,false]"`
 	BinaryPath     string `env:"binary_path"`
+	LintConfigPath string `env:"lint_config_path"`
 
 	// Output export
 	DeployDir string `env:"BITRISE_DEPLOY_DIR"`
@@ -337,6 +338,9 @@ func (s SwiftLinter) Run(config Config) (Result, error) {
 		args = append(args, "--strict")
 	}
 
+	if len(config.LintConfigPath) > 0 {
+		args = append(args, "--config", config.LintConfigPath)
+	}
 
 	cmd := s.cmdFactory.Create(config.resolvedBinaryPath, args, &opts)
 	err := cmd.Run()

@@ -34,6 +34,14 @@ inputs:
         The path to the SwiftLint binary
       is_required: true
 
+  - lint_config_path:
+    opts:
+      title: Path to SwiftLint Config File
+      summary: The path to the config file used by SwiftLint
+      description: |-
+        The path to the config file used by SwiftLint
+      is_required: false
+
   - strict_mode: false
     opts:
       title: Strict Mode

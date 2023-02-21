@@ -2,14 +2,13 @@ package step
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
 )
 
 const (
-	repositoryProviderGithub    = "github"
-	repositoryProviderGitlab    = "gitlab"
-	repositoryProviderBitbucket = "bitbucket"
+	repositoryProviderGithub    = "github.com"
+	repositoryProviderGitlab    = "gitlab.com"
+	repositoryProviderBitbucket = "bitbucket.org"
 )
 
 type ParsedLineFormatter interface {
@@ -17,30 +16,26 @@ type ParsedLineFormatter interface {
 }
 
 func ParsedLineFormatterFactory(config Config) ParsedLineFormatter {
-	remoteURL, err := url.ParseRequestURI(config.RepoState.RemoteURL)
-	if err != nil {
-		return nil
-	}
+	remoteURL := strings.ToLower(config.RepoState.RemoteURL)
 
-	switch strings.ToLower(remoteURL.Host) {
-	case repositoryProviderGithub:
+	if strings.Contains(remoteURL, repositoryProviderGithub) {
 		return GithubParsedLineFormatter{
 			RemoteURL:         config.RepoState.RemoteURL,
 			CurrentBranchHash: config.RepoState.CurrentBranchHash,
 		}
-	case repositoryProviderGitlab:
+	} else if strings.Contains(remoteURL, repositoryProviderGitlab) {
 		return GitlabParsedLineFormatter{
 			RemoteURL:         config.RepoState.RemoteURL,
 			CurrentBranchHash: config.RepoState.CurrentBranchHash,
 		}
-	case repositoryProviderBitbucket:
+	} else if strings.Contains(remoteURL, repositoryProviderBitbucket) {
 		return BitbucketParsedLineFormatter{
 			RemoteURL:         config.RepoState.RemoteURL,
 			CurrentBranchHash: config.RepoState.CurrentBranchHash,
 		}
-	default:
-		return nil
 	}
+
+	return nil
 }
 
 type GithubParsedLineFormatter struct {
