@@ -31,7 +31,7 @@ func run() ExitCode {
 	}
 
 	//ensure deps
-	err = buildStep.EnsureDependencies(config)
+	config, err = buildStep.EnsureDependencies(config)
 	if err != nil {
 		logger.Errorf(errorutil.FormattedError(fmt.Errorf("Failed to install Step dependencies: %w", err)))
 		return Failure

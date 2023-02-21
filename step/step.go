@@ -22,15 +22,14 @@ const (
 	automaticBinarySearchSpecification = "auto"
 	swiftlintBinaryName                = "swiftlint"
 	cocoapodsSubdirectory              = "Pods/Swiftlint/"
-	spmSubdirectory                    = ""
 )
 
 type Input struct {
-	ProjectPath string `env:"project_path"`
-	GenerateLog bool   `env:"generate_log,opt[true,false]"`
-	DebugMode   bool   `env:"verbose_log,opt[true,false]"`
-	StrictMode  bool   `env:"strict_mode,opt[true,false]"`
-	BinaryPath  string `env:"binary_path"`
+	ProjectPath    string `env:"project_path"`
+	GenerateLog    bool   `env:"generate_log,opt[true,false]"`
+	DebugMode      bool   `env:"verbose_log,opt[true,false]"`
+	StrictMode     bool   `env:"strict_mode,opt[true,false]"`
+	BinaryPath     string `env:"binary_path"`
 
 	// Output export
 	DeployDir string `env:"BITRISE_DEPLOY_DIR"`
@@ -137,19 +136,27 @@ func (s SwiftLinter) EnsureDependencies(config Config) (Config, error) {
 		}
 
 		s.logger.Warnf("Failed to locate SwiftLint binary in project directory (%s)", config.ProjectPath)
-		isInstalled, err := s.isSwiftLintInstalled()
+		isInstalled, pathToBinary, err := s.isSwiftLintInstalled()
 		if err != nil {
 			return Config{}, err
 		}
 
 		if !isInstalled {
-			err = s.installSwiftLint()
+			pathToBinary, err = s.installSwiftLint()
 			if err != nil {
 				return Config{}, err
 			}
 		}
 
-		return config, nil
+		if err = s.printSwiftLintVersion(pathToBinary); err != nil {
+			return Config{}, fmt.Errorf("Failed to get SwiftLint version: %w", err)
+		}
+
+		return Config{
+			config.Input,
+			config.RepoState,
+			pathToBinary,
+		}, nil
 	}
 
 	s.logger.Println()
@@ -184,9 +191,16 @@ func (s SwiftLinter) findSwiftLintBinary(root string) string {
 
 	var pathToBinary string
 	swiftLintFound := errors.New("SwiftLint found")
+	pathsToSkipSearching := s.getPathsToSkipSearching()
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
+		}
+
+		if d.IsDir() {
+			if _, ok := pathsToSkipSearching[d.Name()]; ok {
+				return filepath.SkipDir
+			}
 		}
 
 		if !d.IsDir() && d.Name() == swiftlintBinaryName {
@@ -210,6 +224,12 @@ func (s SwiftLinter) checkCommonSwiftLintLocations(root string) string {
 	return ""
 }
 
+func (s SwiftLinter) getPathsToSkipSearching() map[string]struct{} {
+	return map[string]struct{}{
+		".git": struct{}{},
+	}
+}
+
 func (s SwiftLinter) checkCocoaPodsDirectory(root string) string {
 	fullPath := filepath.Join(root, cocoapodsSubdirectory, swiftlintBinaryName)
 	if s.checkFileExists(fullPath) {
@@ -231,19 +251,32 @@ func (s SwiftLinter) checkFileExists(pathToFile string) bool {
 	return exists
 }
 
-func (s SwiftLinter) isSwiftLintInstalled() (bool, error) {
+func (s SwiftLinter) isSwiftLintInstalled() (bool, string, error) {
 	s.logger.Println()
 	s.logger.Infof("Checking if SwiftLint is installed")
 
-	path, err := exec.LookPath(swiftlintBinaryName)
+	pathToBinary, err := exec.LookPath(swiftlintBinaryName)
 	if err != nil {
-		return false, fmt.Errorf("error: %s", err)
+		return false, "", fmt.Errorf("error: %s", err)
 	}
 
-	return len(path) > 0, nil
+	return true, pathToBinary, nil
 }
 
-func (s SwiftLinter) installSwiftLint() error {
+func (s SwiftLinter) printSwiftLintVersion(pathToBinary string) error {
+	cmd := s.cmdFactory.Create(pathToBinary, []string{"--version"}, nil)
+
+	versionOut, err := cmd.RunAndReturnTrimmedCombinedOutput()
+	if err != nil {
+		return err
+	}
+
+	s.logger.Infof("SwiftLint version %s found at: %s", versionOut, pathToBinary)
+
+	return nil
+}
+
+func (s SwiftLinter) installSwiftLint() (string, error) {
 	s.logger.Println()
 	s.logger.Infof("SwiftLint is not installed")
 	s.logger.Infof("Installing SwiftLint")
@@ -251,10 +284,15 @@ func (s SwiftLinter) installSwiftLint() error {
 	cmd := s.cmdFactory.Create("brew", []string{"install", "swiftlint"}, nil)
 	out, err := cmd.RunAndReturnTrimmedCombinedOutput()
 	if err != nil {
-		return fmt.Errorf("%s: error: %s", out, err)
+		return "", fmt.Errorf("%s: error: %s", out, err)
 	}
 
-	return nil
+	pathToBinary, err := exec.LookPath(swiftlintBinaryName)
+	if err != nil {
+		return "", fmt.Errorf("error: %s", err)
+	}
+
+	return pathToBinary, nil
 }
 
 // Result ...
@@ -299,7 +337,8 @@ func (s SwiftLinter) Run(config Config) (Result, error) {
 		args = append(args, "--strict")
 	}
 
-	cmd := s.cmdFactory.Create("swiftlint", args, &opts)
+
+	cmd := s.cmdFactory.Create(config.resolvedBinaryPath, args, &opts)
 	err := cmd.Run()
 
 	return Result{

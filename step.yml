@@ -77,7 +77,7 @@ inputs:
       summary: This directory will contain the generated artifacts.
       is_required: true
 
-  outputs:
+outputs:
   - BITRISE_SWIFTLINT_LOG_PATH:
     opts:
       title: "`swiftlint` command log file path"
