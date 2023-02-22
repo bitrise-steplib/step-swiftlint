@@ -1,0 +1,93 @@
+title: Swiftlint Linter for iOS
+summary: Scans your code for linter errors based on specified in your `.swiftlint.yml`
+description: |-
+  The Step lints your code by recursively scanning all Swift files.
+  
+  Under **Step Output Export configuration**:
+  1. **Output directory path**: This directory will contain the generated log file if `generate_log` is true.
+website: https://github.com/bitrise-steplib/steps-swiftlint
+source_code_url: https://github.com/bitrise-steplib/steps-swiftlint
+support_url: https://github.com/bitrise-steplib/steps-swiftlint/issues
+project_type_tags:
+  - ios
+type_tags:
+  - build
+is_always_run: false
+is_skippable: false
+toolkit:
+  go:
+    package_name: github.com/bitrise-steplib/steps-swiftlint
+inputs:
+  - project_path: $BITRISE_SOURCE_DIR
+    opts:
+      title: Project path
+      summary: The path to the directory containing the Swift files
+      description: |-
+        The path to the directory containing the Swift files.
+      is_required: true
+
+  - binary_path: auto
+    opts:
+      title: Path to SwiftLint Binary
+      summary: The path to the SwiftLint binary
+      description: |-
+        The path to the SwiftLint binary
+      is_required: true
+
+  - lint_config_path:
+    opts:
+      title: Path to SwiftLint Config File
+      summary: The path to the config file used by SwiftLint
+      description: |-
+        The path to the config file used by SwiftLint
+      is_required: false
+
+  - strict_mode: false
+    opts:
+      title: Strict Mode
+      summary: Runs SwiftLint in strict mode
+      description: |-
+        When run in strict mode SwiftLint will treat warnings as errors.
+      value_options:
+        - true
+        - false
+      is_required: true
+
+  - generate_log: false
+    opts:
+      title: Generate log
+      summary: Generates a log file in the `Output directory`
+      description: |-
+        The raw `swiftlint` command output. The log file is placed into the `Output directory`.
+      value_options:
+        - true
+        - false
+      is_required: true
+
+  # Debugging
+
+  - verbose_log: false
+    opts:
+      category: Debugging
+      title: Enable verbose logging
+      summary: If this input is set, the Step will print additional logs for debugging.
+      value_options:
+        - true
+        - false
+      is_required: true
+
+  # Step Output Export configuration
+
+  - output_dir: $BITRISE_DEPLOY_DIR
+    opts:
+      category: Step Output Export configuration
+      title: Output directory path
+      summary: This directory will contain the generated artifacts.
+      is_required: true
+
+outputs:
+  - BITRISE_SWIFTLINT_LOG_PATH:
+    opts:
+      title: "`swiftlint` command log file path"
+      description: |-
+        The file path of the raw `swiftlint` command log. The log is placed into the `Output directory path`.

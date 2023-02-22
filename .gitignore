@@ -1,0 +1,6 @@
+.bitrise*
+_tmp
+.idea
+steps-swiftlint
+.DS_Store
+.envstore.yml
